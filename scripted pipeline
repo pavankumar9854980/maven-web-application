@@ -1,0 +1,28 @@
+node {
+    def mavenHome = tool name: "maven 3.8.3"
+    properties([buildDiscarder(logRotator(artifactDaysToKeepStr: '', artifactNumToKeepStr: '5', daysToKeepStr: '', numToKeepStr: '5')), [$class: 'JobLocalConfiguration', changeReasonComment: ''], pipelineTriggers([pollSCM('* * * * *')])])
+    stage('checkoutcode') {
+       git branch: 'development', credentialsId: '73a50783-5b42-4ec9-963f-202a08276817', url: 'https://github.com/pavankumar9854980/maven-web-application.git' 
+    }
+    stage('Build') {
+        sh "${mavenHome}/bin/mvn clean package"
+    }
+    /*
+    stage('executesonarqubereport'){
+        sh "${mavenHome}/bin/mvn sonar:sonar"
+    }
+    */
+    stage('uploadartifactnexusrepo'){
+        sh "${mavenHome}/bin/mvn deploy"
+    }
+    stage('DeployAppintoTomcatServer'){
+    sshagent(['6d9a3e96-2023-4a83-95cd-6e1f5fb79930']) {
+        sh "scp target/maven-web-application.war ec2-user@13.232.46.104:/opt/apache-tomcat-9.0.78/webapps/"
+    }
+    }
+    stage('send email notification'){
+    emailext body: '''build over
+    Regards
+    pavan''', subject: 'build over', to: 'pavankumar9854980@gmail.com'
+    }
+}
